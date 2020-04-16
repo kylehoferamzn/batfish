@@ -1100,13 +1100,25 @@
       },
       {
         "File_Name" : "configs/cisco_interface",
+        "Struct_Type" : "interface",
+        "Ref_Name" : "Loopback1",
+        "Context" : "vxlan source-interface",
+        "Lines" : {
+          "filename" : "configs/cisco_interface",
+          "lines" : [
+            326
+          ]
+        }
+      },
+      {
+        "File_Name" : "configs/cisco_interface",
         "Struct_Type" : "ipv4 acl",
         "Ref_Name" : "167",
         "Context" : "interface ip verify access-list",
         "Lines" : {
           "filename" : "configs/cisco_interface",
           "lines" : [
-            129
+            132
           ]
         }
       },
@@ -1118,7 +1130,7 @@
         "Lines" : {
           "filename" : "configs/cisco_interface",
           "lines" : [
-            137
+            140
           ]
         }
       },
@@ -1148,6 +1160,30 @@
       },
       {
         "File_Name" : "configs/cisco_interface",
+        "Struct_Type" : "ipv4 acl",
+        "Ref_Name" : "def",
+        "Context" : "ip nat source dynamic access-list",
+        "Lines" : {
+          "filename" : "configs/cisco_interface",
+          "lines" : [
+            94
+          ]
+        }
+      },
+      {
+        "File_Name" : "configs/cisco_interface",
+        "Struct_Type" : "ipv4 acl",
+        "Ref_Name" : "mynatacl",
+        "Context" : "ip nat destination acl",
+        "Lines" : {
+          "filename" : "configs/cisco_interface",
+          "lines" : [
+            91
+          ]
+        }
+      },
+      {
+        "File_Name" : "configs/cisco_interface",
         "Struct_Type" : "ipv4/6 acl",
         "Ref_Name" : "1",
         "Context" : "interface igmp access-group acl",
@@ -1172,13 +1208,25 @@
       },
       {
         "File_Name" : "configs/cisco_interface",
+        "Struct_Type" : "nat pool",
+        "Ref_Name" : "beeble",
+        "Context" : "ip nat source pool",
+        "Lines" : {
+          "filename" : "configs/cisco_interface",
+          "lines" : [
+            95
+          ]
+        }
+      },
+      {
+        "File_Name" : "configs/cisco_interface",
         "Struct_Type" : "route-map",
         "Ref_Name" : "SITEMAP",
         "Context" : "interface ip vrf sitemap",
         "Lines" : {
           "filename" : "configs/cisco_interface",
           "lines" : [
-            135
+            138
           ]
         }
       },
@@ -1190,7 +1238,7 @@
         "Lines" : {
           "filename" : "configs/cisco_interface",
           "lines" : [
-            125
+            128
           ]
         }
       },
@@ -1202,7 +1250,7 @@
         "Lines" : {
           "filename" : "configs/cisco_interface",
           "lines" : [
-            279
+            282
           ]
         }
       },
@@ -4132,10 +4180,10 @@
       }
     ],
     "summary" : {
-      "notes" : "Found 335 results",
+      "notes" : "Found 339 results",
       "numFailed" : 0,
       "numPassed" : 0,
-      "numResults" : 335
+      "numResults" : 339
     }
   }
 ]

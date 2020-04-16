@@ -325,6 +325,11 @@ public final class Hierarchy {
         }
 
         @Override
+        public boolean getUseAristaBgp() {
+          return false;
+        }
+
+        @Override
         public void setDisableUnrecognized(boolean disableUnrecognized) {}
 
         @Override

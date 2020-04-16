@@ -148,7 +148,7 @@ sbafi_maximum_paths
 
 sbafi_network
 :
-  NETWORK IP_PREFIX NEWLINE
+  NETWORK IP_PREFIX (ROUTE_MAP route_map_name)? NEWLINE
 ;
 
 sbafi_redistribute
@@ -222,7 +222,6 @@ sbn_property
 | sbnp_password
 | sbnp_remote_as
 | sbnp_update_source
-| sbnp_local_as
 ;
 
 sbnp_bfd
@@ -260,14 +259,9 @@ sbnp_update_source
   UPDATE_SOURCE (ip = IP_ADDRESS | name = word)
 ;
 
-sbnp_local_as
-:
-  LOCAL_AS asn = autonomous_system (NO_PREPEND REPLACE_AS?)?
-;
-
 sb_network
 :
-  NETWORK prefix NEWLINE
+  NETWORK IP_PREFIX (ROUTE_MAP route_map_name)? NEWLINE
 ;
 
 sbafi_neighbor

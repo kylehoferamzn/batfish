@@ -66,6 +66,9 @@ public interface GrammarSettings {
    */
   boolean getThrowOnParserError();
 
+  /** Whether or not to use the separate Arista BGP parse rules */
+  boolean getUseAristaBgp();
+
   /**
    * See {@link GrammarSettings#getDisableUnrecognized()}
    *

@@ -543,7 +543,7 @@ public class WorkMgr extends AbstractCoordinator {
     }
   }
 
-  WorkDetails computeWorkDetails(WorkItem workItem) throws IOException {
+  WorkDetails computeWorkDetails(WorkItem workItem) {
     String referenceSnapshotName = WorkItemBuilder.getReferenceSnapshotName(workItem);
     String questionName = WorkItemBuilder.getQuestionName(workItem);
     String analysisName = WorkItemBuilder.getAnalysisName(workItem);
@@ -634,7 +634,6 @@ public class WorkMgr extends AbstractCoordinator {
    *     false} and analysis does not exist; or if {@code newAnalysis} is {@code true} and analysis
    *     already exists; or if a question to delete does not exist; or if a question to add already
    *     exists.
-   * @throws IOException if there is some other error configuration the analysis
    */
   public void configureAnalysis(
       String network,
@@ -642,8 +641,7 @@ public class WorkMgr extends AbstractCoordinator {
       String analysis,
       Map<String, String> questionsToAdd,
       List<String> questionsToDelete,
-      @Nullable Boolean suggested)
-      throws IOException {
+      @Nullable Boolean suggested) {
     NetworkId networkId = _idManager.getNetworkId(network);
     configureAnalysisValidityCheck(
         network, newAnalysis, analysis, questionsToAdd, questionsToDelete);
@@ -1545,11 +1543,8 @@ public class WorkMgr extends AbstractCoordinator {
    * Get content of given question under network and analysis. Gets ad-hoc question content if
    * analysis is {@code null}. Returns {@code null} if network, analysis (when non-null), or
    * question does not exist.
-   *
-   * @throws IOException if there is an error reading the question
    */
-  public @Nullable String getQuestion(String network, String question, @Nullable String analysis)
-      throws IOException {
+  public @Nullable String getQuestion(String network, String question, @Nullable String analysis) {
     if (!_idManager.hasNetworkId(network)) {
       return null;
     }
@@ -2340,11 +2335,8 @@ public class WorkMgr extends AbstractCoordinator {
   /**
    * Uploads the given ad-hoc question to the given network. Returns {@code true} if successful.
    * Returns {@code false} if network does not exist.
-   *
-   * @throws IOException if there as an error saving the question
    */
-  public boolean uploadQuestion(String network, String question, String questionJson)
-      throws IOException {
+  public boolean uploadQuestion(String network, String question, String questionJson) {
     if (!_idManager.hasNetworkId(network)) {
       return false;
     }
@@ -2353,8 +2345,7 @@ public class WorkMgr extends AbstractCoordinator {
   }
 
   @VisibleForTesting
-  void uploadQuestion(String network, String question, String questionJson, boolean validate)
-      throws IOException {
+  void uploadQuestion(String network, String question, String questionJson, boolean validate) {
     if (validate) {
       // Validate the question before saving it to disk.
       try {

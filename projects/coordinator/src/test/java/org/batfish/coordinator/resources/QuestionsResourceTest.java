@@ -105,7 +105,7 @@ public final class QuestionsResourceTest extends WorkMgrServiceV2TestBase {
   }
 
   @Test
-  public void testDeleteQuestionAdHocSuccess() throws IOException {
+  public void testDeleteQuestionAdHocSuccess() throws JsonProcessingException {
     String network = "network1";
     String question = "question1";
     Main.getWorkMgr().initNetwork(network, null);
@@ -144,7 +144,7 @@ public final class QuestionsResourceTest extends WorkMgrServiceV2TestBase {
   }
 
   @Test
-  public void testDeleteQuestionAnalysisMissingQuestion() throws IOException {
+  public void testDeleteQuestionAnalysisMissingQuestion() throws JsonProcessingException {
     String network = "network1";
     String question = "question1";
     String analysis = "analysis1";
@@ -164,7 +164,7 @@ public final class QuestionsResourceTest extends WorkMgrServiceV2TestBase {
   }
 
   @Test
-  public void testDeleteQuestionAnalysisSuccess() throws IOException {
+  public void testDeleteQuestionAnalysisSuccess() throws JsonProcessingException {
     String network = "network1";
     String question = "question1";
     String analysis = "analysis1";
@@ -208,7 +208,7 @@ public final class QuestionsResourceTest extends WorkMgrServiceV2TestBase {
   }
 
   @Test
-  public void testGetQuestionAdHocSuccess() throws IOException {
+  public void testGetQuestionAdHocSuccess() throws JsonProcessingException {
     String network = "network1";
     String question = "question1";
     String questionJson = BatfishObjectMapper.writeString(new TestQuestion());
@@ -242,7 +242,7 @@ public final class QuestionsResourceTest extends WorkMgrServiceV2TestBase {
   }
 
   @Test
-  public void testGetQuestionAnalysisMissingQuestion() throws IOException {
+  public void testGetQuestionAnalysisMissingQuestion() throws JsonProcessingException {
     String network = "network1";
     String question = "question1";
     String analysis = "analysis1";
@@ -262,7 +262,7 @@ public final class QuestionsResourceTest extends WorkMgrServiceV2TestBase {
   }
 
   @Test
-  public void testGetQuestionAnalysisSuccess() throws IOException {
+  public void testGetQuestionAnalysisSuccess() throws JsonProcessingException {
     String network = "network1";
     String question = "question1";
     String analysis = "analysis1";
@@ -355,7 +355,7 @@ public final class QuestionsResourceTest extends WorkMgrServiceV2TestBase {
   }
 
   @Test
-  public void testPutQuestionAdHocSuccess() throws IOException {
+  public void testPutQuestionAdHocSuccess() throws JsonProcessingException {
     String network = "network1";
     String question = "question1";
     String questionJson = BatfishObjectMapper.writeString(new TestQuestion());
@@ -394,7 +394,7 @@ public final class QuestionsResourceTest extends WorkMgrServiceV2TestBase {
   }
 
   @Test
-  public void testPutQuestionAnalysisSuccess() throws IOException {
+  public void testPutQuestionAnalysisSuccess() throws JsonProcessingException {
     String network = "network1";
     String question = "question1";
     String analysis = "analysis1";

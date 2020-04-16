@@ -1546,7 +1546,7 @@
         },
         "configs/arista_bgp" : {
           "sentences" : [
-            "(arista_configuration",
+            "(cisco_configuration",
             "  (stanza",
             "    (s_hostname",
             "      HOSTNAME:'hostname'",
@@ -1876,7 +1876,7 @@
         },
         "configs/arista_misc" : {
           "sentences" : [
-            "(arista_configuration",
+            "(cisco_configuration",
             "  (stanza",
             "    (s_hostname",
             "      HOSTNAME:'hostname'",
@@ -1886,12 +1886,11 @@
             "    (s_cvx",
             "      CVX:'cvx'",
             "      NEWLINE:'\\n'",
-            "      (cvx_no",
+            "      (cvx_null",
             "        NO:'no'",
-            "        (cvx_no_null",
-            "          SHUTDOWN:'shutdown'",
-            "          (null_rest_of_line",
-            "            NEWLINE:'\\n')))))",
+            "        SHUTDOWN:'shutdown'",
+            "        (null_rest_of_line",
+            "          NEWLINE:'\\n'))))",
             "  (stanza",
             "    (s_daemon",
             "      DAEMON:'daemon'",
@@ -2099,7 +2098,7 @@
         },
         "configs/arista_nat" : {
           "sentences" : [
-            "(arista_configuration",
+            "(cisco_configuration",
             "  (stanza",
             "    (s_null",
             "      (null_single",
@@ -2287,11 +2286,9 @@
             "      (u",
             "        (u_password",
             "          SECRET:'secret'",
-            "          (up_cisco",
+            "          (up_arista_md5",
             "            DEC:'5'",
-            "            (up_cisco_tail",
-            "              pass = (variable_secret",
-            "                MD5_ARISTA:'$1$5C7CVuxv$nnhvQ21cl8fsuw/HTaYpA/')))))",
+            "            pass = MD5_ARISTA:'$1$5C7CVuxv$nnhvQ21cl8fsuw/HTaYpA/')))",
             "      NEWLINE:'\\n'))",
             "  (stanza",
             "    (s_username",
@@ -2301,11 +2298,9 @@
             "      (u",
             "        (u_password",
             "          SECRET:'secret'",
-            "          (up_cisco",
-            "            (up_cisco_tail",
-            "              pass = (variable_secret",
-            "                SHA512:'sha512'",
-            "                SHA512_ARISTA:'$6$RMxgK5ALGIf.nWEC$tHuKCyfNtJMCY561P52dTzHUmYMmLxb/Mxik.j3vMUs8lMCPocM00/NAS.SN6GCWx7d/vQIgxnClyQLAb7n3x0')))))",
+            "          (up_arista_sha512",
+            "            SHA512:'sha512'",
+            "            pass = SHA512_ARISTA:'$6$RMxgK5ALGIf.nWEC$tHuKCyfNtJMCY561P52dTzHUmYMmLxb/Mxik.j3vMUs8lMCPocM00/NAS.SN6GCWx7d/vQIgxnClyQLAb7n3x0')))",
             "      NEWLINE:'\\n'))",
             "  EOF:<EOF>)"
           ]
@@ -9381,7 +9376,7 @@
             "  (stanza",
             "    (s_banner_cadant",
             "      BANNER:'banner'",
-            "      type = (cadant_banner_type",
+            "      type = (eos_banner_type",
             "        LOGIN:'login')",
             "      NEWLINE:'\\n'  <== mode:M_BannerCadant",
             "      body = BANNER_BODY:'Some text\\nSome more text\\n'  <== mode:M_BannerCadantText",
@@ -23447,6 +23442,18 @@
             "          DEC:'1'",
             "          NEWLINE:'\\n'))",
             "      (if_inner",
+            "        (if_ip_nat_destination",
+            "          IP:'ip'",
+            "          NAT:'nat'",
+            "          DESTINATION:'destination'",
+            "          STATIC:'static'",
+            "          IP_ADDRESS:'1.2.3.4'",
+            "          ACCESS_LIST:'access-list'",
+            "          acl = (variable",
+            "            VARIABLE:'mynatacl')",
+            "          IP_ADDRESS:'2.3.4.5'",
+            "          NEWLINE:'\\n'))",
+            "      (if_inner",
             "        (if_ip_nat_inside",
             "          IP:'ip'",
             "          NAT:'nat'",
@@ -23457,6 +23464,30 @@
             "          IP:'ip'",
             "          NAT:'nat'",
             "          OUTSIDE:'outside'",
+            "          NEWLINE:'\\n'))",
+            "      (if_inner",
+            "        (if_ip_nat_source",
+            "          IP:'ip'",
+            "          NAT:'nat'",
+            "          SOURCE:'source'",
+            "          DYNAMIC:'dynamic'",
+            "          ACCESS_LIST:'access-list'",
+            "          acl = (variable",
+            "            VARIABLE:'def')",
+            "          OVERLOAD:'overload'",
+            "          NEWLINE:'\\n'))",
+            "      (if_inner",
+            "        (if_ip_nat_source",
+            "          IP:'ip'",
+            "          NAT:'nat'",
+            "          SOURCE:'source'",
+            "          DYNAMIC:'dynamic'",
+            "          ACCESS_LIST:'access-list'",
+            "          acl = (variable",
+            "            VARIABLE:'abc')",
+            "          POOL:'pool'",
+            "          pool = (variable",
+            "            VARIABLE:'beeble')",
             "          NEWLINE:'\\n'))",
             "      (if_inner",
             "        (if_ip_nbar",
@@ -24950,6 +24981,54 @@
             "          (subrange",
             "            low = DEC:'111'  <== mode:M_Interface)))",
             "      NEWLINE:'\\n'  <== mode:M_Interface))",
+            "  (stanza",
+            "    (s_eos_vxlan_interface",
+            "      INTERFACE:'interface'",
+            "      iname = (eos_vxlan_interface_name",
+            "        VXLAN:'Vxlan'  <== mode:M_Interface",
+            "        DEC:'1'  <== mode:M_Interface)",
+            "      NEWLINE:'\\n'  <== mode:M_Interface",
+            "      (eos_vxlan_if_inner",
+            "        (eos_vxif_vxlan",
+            "          VXLAN:'vxlan'",
+            "          (eos_vxif_vxlan_source_interface",
+            "            SOURCE_INTERFACE:'source-interface'",
+            "            iface = (interface_name",
+            "              name_prefix_alpha = M_Interface_PREFIX:'Loopback'  <== mode:M_Interface",
+            "              (range",
+            "                (subrange",
+            "                  low = DEC:'1'  <== mode:M_Interface)))",
+            "            NEWLINE:'\\n'  <== mode:M_Interface)))",
+            "      (eos_vxlan_if_inner",
+            "        (eos_vxif_vxlan",
+            "          VXLAN:'vxlan'",
+            "          (eos_vxif_vxlan_udp_port",
+            "            UDP_PORT:'udp-port'",
+            "            num = DEC:'1234'",
+            "            NEWLINE:'\\n')))",
+            "      (eos_vxlan_if_inner",
+            "        (eos_vxif_vxlan",
+            "          VXLAN:'vxlan'",
+            "          (eos_vxif_vxlan_vlan",
+            "            VLAN:'vlan'",
+            "            num = DEC:'123'",
+            "            (eos_vxif_vxlan_vlan_vni",
+            "              VNI:'vni'",
+            "              num = DEC:'456'",
+            "              NEWLINE:'\\n'))))",
+            "      (eos_vxlan_if_inner",
+            "        (eos_vxif_vxlan",
+            "          VXLAN:'vxlan'",
+            "          (eos_vxif_vxlan_vlan",
+            "            VLAN:'vlan'",
+            "            num = DEC:'123'",
+            "            (eos_vxif_vxlan_flood",
+            "              FLOOD:'flood'",
+            "              VTEP:'vtep'",
+            "              IP_ADDRESS:'1.0.0.1'",
+            "              IP_ADDRESS:'2.0.0.1'",
+            "              IP_ADDRESS:'3.0.0.1'",
+            "              NEWLINE:'\\n'))))))",
             "  (stanza",
             "    (s_interface",
             "      INTERFACE:'interface'",
@@ -36941,11 +37020,9 @@
             "      (u",
             "        (u_password",
             "          SECRET:'secret'",
-            "          (up_cisco",
+            "          (up_arista_md5",
             "            DEC:'5'",
-            "            (up_cisco_tail",
-            "              pass = (variable_secret",
-            "                MD5_ARISTA:'$1$pdQG$60trnJU5CpHjXSffvKXzd.')))))",
+            "            pass = MD5_ARISTA:'$1$pdQG$60trnJU5CpHjXSffvKXzd.')))",
             "      NEWLINE:'\\n'))",
             "  (stanza",
             "    (s_username",
@@ -37072,11 +37149,9 @@
             "      (u",
             "        (u_password",
             "          SECRET:'secret'",
-            "          (up_cisco",
+            "          (up_arista_md5",
             "            DEC:'5'",
-            "            (up_cisco_tail",
-            "              pass = (variable_secret",
-            "                MD5_ARISTA:'$1$aaaa$bbbbbbbbbbbbbbbbbbbbbb')))))",
+            "            pass = MD5_ARISTA:'$1$aaaa$bbbbbbbbbbbbbbbbbbbbbb')))",
             "      NEWLINE:'\\n'))",
             "  (stanza",
             "    (s_username_attributes",
@@ -42754,7 +42829,7 @@
         },
         "configs/eos_mlag" : {
           "sentences" : [
-            "(arista_configuration",
+            "(cisco_configuration",
             "  (stanza",
             "    (s_hostname",
             "      HOSTNAME:'hostname'",
@@ -42883,7 +42958,7 @@
         },
         "configs/eos_trunk_group" : {
           "sentences" : [
-            "(arista_configuration",
+            "(cisco_configuration",
             "  (stanza",
             "    (s_hostname",
             "      HOSTNAME:'hostname'",
@@ -76220,13 +76295,13 @@
             {
               "Comment" : "This feature is not currently supported",
               "Line" : 12,
-              "Parser_Context" : "[eos_rbir_ospf3 eos_rbi_redistribute eos_rb_inner eos_router_bgp_tail router_bgp_stanza stanza arista_configuration]",
+              "Parser_Context" : "[eos_rbir_ospf3 eos_rbi_redistribute eos_rb_inner eos_router_bgp_tail router_bgp_stanza stanza cisco_configuration]",
               "Text" : "ospf3 match internal route-map ROUTE_MAP"
             },
             {
               "Comment" : "This feature is not currently supported",
               "Line" : 13,
-              "Parser_Context" : "[eos_rbir_ospf3 eos_rbi_redistribute eos_rb_inner eos_router_bgp_tail router_bgp_stanza stanza arista_configuration]",
+              "Parser_Context" : "[eos_rbir_ospf3 eos_rbi_redistribute eos_rb_inner eos_router_bgp_tail router_bgp_stanza stanza cisco_configuration]",
               "Text" : "ospf3 match external route-map UNDEFINED_MAP"
             }
           ]
@@ -76246,13 +76321,13 @@
             {
               "Comment" : "Subnet of NAT pool pool2 does not contain last pool IP",
               "Line" : 9,
-              "Parser_Context" : "[ip_nat_pool s_ip_nat stanza arista_configuration]",
+              "Parser_Context" : "[ip_nat_pool s_ip_nat stanza cisco_configuration]",
               "Text" : "ip nat pool pool2 1.1.1.1 1.1.1.2 netmask 255.255.255.255"
             },
             {
               "Comment" : "Subnet of NAT pool pool3 does not contain last pool IP",
               "Line" : 10,
-              "Parser_Context" : "[ip_nat_pool s_ip_nat stanza arista_configuration]",
+              "Parser_Context" : "[ip_nat_pool s_ip_nat stanza cisco_configuration]",
               "Text" : "ip nat pool pool3 1.1.1.1 1.1.1.2 prefix-length 32"
             }
           ]
@@ -76625,25 +76700,25 @@
             },
             {
               "Comment" : "This feature is not currently supported",
-              "Line" : 125,
+              "Line" : 128,
               "Parser_Context" : "[if_ip_summary_address if_inner s_interface stanza cisco_configuration]",
               "Text" : "ip summary-address eigrp 11 10.1.2.3 255.255.255.255 leak-map eigrp-leak-map"
             },
             {
               "Comment" : "This feature is not currently supported",
-              "Line" : 278,
+              "Line" : 281,
               "Parser_Context" : "[if_zone_member if_inner s_interface stanza cisco_configuration]",
               "Text" : "zone-member t1"
             },
             {
               "Comment" : "This feature is not currently supported",
-              "Line" : 313,
+              "Line" : 316,
               "Parser_Context" : "[iftunnel_mode if_tunnel if_inner s_interface stanza cisco_configuration]",
               "Text" : "mode gre ipv4"
             },
             {
               "Comment" : "This feature is not currently supported",
-              "Line" : 314,
+              "Line" : 317,
               "Parser_Context" : "[iftunnel_mode if_tunnel if_inner s_interface stanza cisco_configuration]",
               "Text" : "mode gre multipoint"
             }
@@ -79694,31 +79769,31 @@
                 4,
                 5
               ],
-              "numReferrers" : 0
+              "numReferrers" : 1
             }
           },
           "interface" : {
             "Async1" : {
               "definitionLines" : [
-                281
+                284
               ],
               "numReferrers" : 1
             },
             "Cable1/2/3:4" : {
               "definitionLines" : [
-                283
+                286
               ],
               "numReferrers" : 1
             },
             "Crypto-Engine1/2/3" : {
               "definitionLines" : [
-                285
+                288
               ],
               "numReferrers" : 1
             },
             "Dot11Radio0" : {
               "definitionLines" : [
-                287
+                290
               ],
               "numReferrers" : 1
             },
@@ -79996,59 +80071,59 @@
                 276,
                 277,
                 278,
-                279
+                279,
+                280,
+                281,
+                282
               ],
               "numReferrers" : 1
             },
             "Ethernet1/11" : {
               "definitionLines" : [
-                289
+                292
               ],
               "numReferrers" : 1
             },
             "Ethernet1/12" : {
               "definitionLines" : [
-                342,
-                343
+                352,
+                353
               ],
               "numReferrers" : 1
             },
             "GigabitEthernet0/0" : {
               "definitionLines" : [
-                291,
-                292,
-                293,
                 294,
-                295
+                295,
+                296,
+                297,
+                298
               ],
               "numReferrers" : 1
             },
             "Loopback0" : {
               "definitionLines" : [
-                297,
-                298,
-                299,
-                300
+                300,
+                301,
+                302,
+                303
               ],
               "numReferrers" : 1
             },
             "Modular-Cable1/2/3:4" : {
               "definitionLines" : [
-                302
+                305
               ],
               "numReferrers" : 1
             },
             "Null0" : {
               "definitionLines" : [
-                304
+                307
               ],
               "numReferrers" : 1
             },
             "Tunnel0" : {
               "definitionLines" : [
-                308,
-                309,
-                310,
                 311,
                 312,
                 313,
@@ -80057,85 +80132,100 @@
                 316,
                 317,
                 318,
-                319
+                319,
+                320,
+                321,
+                322
               ],
               "numReferrers" : 1
             },
             "Vlan1" : {
               "definitionLines" : [
-                322
+                332
               ],
               "numReferrers" : 1
             },
             "Vlan1005" : {
               "definitionLines" : [
-                328
+                338
               ],
               "numReferrers" : 1
             },
             "Vlan1006" : {
               "definitionLines" : [
-                330
+                340
               ],
               "numReferrers" : 1
             },
             "Vlan111" : {
               "definitionLines" : [
-                320
+                323
               ],
               "numReferrers" : 1
             },
             "Vlan1234" : {
               "definitionLines" : [
-                332
+                342
               ],
               "numReferrers" : 1
             },
             "Vlan2" : {
               "definitionLines" : [
-                324
+                334
               ],
               "numReferrers" : 1
             },
             "Vlan3" : {
               "definitionLines" : [
-                326
+                336
               ],
               "numReferrers" : 1
             },
             "Vlan4094" : {
               "definitionLines" : [
-                334
+                344
               ],
               "numReferrers" : 1
             },
             "Wideband-Cable1/2/3:4" : {
               "definitionLines" : [
-                336
+                346
               ],
               "numReferrers" : 1
             },
             "Wlan-GigabitEthernet0" : {
               "definitionLines" : [
-                340
+                350
               ],
               "numReferrers" : 1
             },
             "Wlan-ap0" : {
               "definitionLines" : [
-                338
+                348
               ],
               "numReferrers" : 1
             },
             "inside" : {
               "definitionLines" : [
-                292
+                295
               ],
               "numReferrers" : 1
             },
             "tunnel-ip6" : {
               "definitionLines" : [
-                306
+                309
+              ],
+              "numReferrers" : 1
+            }
+          },
+          "vxlan" : {
+            "Vxlan1" : {
+              "definitionLines" : [
+                325,
+                326,
+                327,
+                328,
+                329
               ],
               "numReferrers" : 1
             }
@@ -88407,27 +88497,27 @@
           "interface" : {
             "Async1" : {
               "interface" : [
-                281
+                284
               ]
             },
             "Cable1/2/3:4" : {
               "interface" : [
-                283
+                286
               ]
             },
             "Cellular0" : {
               "tunnel source" : [
-                317
+                320
               ]
             },
             "Crypto-Engine1/2/3" : {
               "interface" : [
-                285
+                288
               ]
             },
             "Dot11Radio0" : {
               "interface" : [
-                287
+                290
               ]
             },
             "Ethernet0" : {
@@ -88435,119 +88525,129 @@
                 7
               ],
               "tunnel source" : [
-                318
+                321
               ]
             },
             "Ethernet1/11" : {
               "interface" : [
-                289
+                292
               ]
             },
             "Ethernet1/12" : {
               "interface" : [
-                342
+                352
               ]
             },
             "GigabitEthernet0/0" : {
               "interface" : [
-                291
+                294
               ]
             },
             "Loopback0" : {
               "interface" : [
-                297
+                300
+              ]
+            },
+            "Loopback1" : {
+              "vxlan source-interface" : [
+                326
               ]
             },
             "Modular-Cable1/2/3:4" : {
               "interface" : [
-                302
+                305
               ]
             },
             "Null0" : {
               "interface" : [
-                304
+                307
               ]
             },
             "Tunnel0" : {
               "interface" : [
-                308
+                311
               ]
             },
             "Vlan1" : {
               "interface" : [
-                322
+                332
               ]
             },
             "Vlan1005" : {
               "interface" : [
-                328
+                338
               ]
             },
             "Vlan1006" : {
               "interface" : [
-                330
+                340
               ]
             },
             "Vlan111" : {
               "interface" : [
-                320
+                323
               ]
             },
             "Vlan1234" : {
               "interface" : [
-                332
+                342
               ]
             },
             "Vlan2" : {
               "interface" : [
-                324
+                334
               ]
             },
             "Vlan3" : {
               "interface" : [
-                326
+                336
               ]
             },
             "Vlan4094" : {
               "interface" : [
-                334
+                344
               ]
             },
             "Wideband-Cable1/2/3:4" : {
               "interface" : [
-                336
+                346
               ]
             },
             "Wlan-GigabitEthernet0" : {
               "interface" : [
-                340
+                350
               ]
             },
             "Wlan-ap0" : {
               "interface" : [
-                338
+                348
               ]
             },
             "inside" : {
               "interface" : [
-                292
+                295
               ]
             },
             "tunnel-ip6" : {
               "interface" : [
-                306
+                309
               ]
             }
           },
           "ipv4 acl" : {
             "167" : {
               "interface ip verify access-list" : [
-                129
+                132
               ]
             },
             "310-systems" : {
               "interface outgoing ip access-list" : [
-                137
+                140
+              ]
+            },
+            "abc" : {
+              "ip nat source dynamic access-list" : [
+                95
               ]
             },
             "ag1" : {
@@ -88558,6 +88658,16 @@
             "ag2" : {
               "interface outgoing ip access-list" : [
                 57
+              ]
+            },
+            "def" : {
+              "ip nat source dynamic access-list" : [
+                94
+              ]
+            },
+            "mynatacl" : {
+              "ip nat destination acl" : [
+                91
               ]
             }
           },
@@ -88573,29 +88683,43 @@
               ]
             }
           },
+          "nat pool" : {
+            "beeble" : {
+              "ip nat source pool" : [
+                95
+              ]
+            }
+          },
           "route-map" : {
             "SITEMAP" : {
               "interface ip vrf sitemap" : [
-                135
+                138
               ]
             },
             "eigrp-leak-map" : {
               "interface summary-address eigrp leak-map" : [
-                125
+                128
+              ]
+            }
+          },
+          "vxlan" : {
+            "Vxlan1" : {
+              "vxlan" : [
+                325
               ]
             }
           },
           "zone" : {
             "t1" : {
               "interface zone-member" : [
-                278
+                281
               ]
             }
           },
           "zone security" : {
             "z1" : {
               "interface zone-member security" : [
-                279
+                282
               ]
             }
           }
@@ -93611,15 +93735,22 @@
           }
         },
         "configs/cisco_interface" : {
+          "interface" : {
+            "Loopback1" : {
+              "vxlan source-interface" : [
+                326
+              ]
+            }
+          },
           "ipv4 acl" : {
             "167" : {
               "interface ip verify access-list" : [
-                129
+                132
               ]
             },
             "310-systems" : {
               "interface outgoing ip access-list" : [
-                137
+                140
               ]
             },
             "ag1" : {
@@ -93630,6 +93761,16 @@
             "ag2" : {
               "interface outgoing ip access-list" : [
                 57
+              ]
+            },
+            "def" : {
+              "ip nat source dynamic access-list" : [
+                94
+              ]
+            },
+            "mynatacl" : {
+              "ip nat destination acl" : [
+                91
               ]
             }
           },
@@ -93645,22 +93786,29 @@
               ]
             }
           },
+          "nat pool" : {
+            "beeble" : {
+              "ip nat source pool" : [
+                95
+              ]
+            }
+          },
           "route-map" : {
             "SITEMAP" : {
               "interface ip vrf sitemap" : [
-                135
+                138
               ]
             },
             "eigrp-leak-map" : {
               "interface summary-address eigrp leak-map" : [
-                125
+                128
               ]
             }
           },
           "zone security" : {
             "z1" : {
               "interface zone-member security" : [
-                279
+                282
               ]
             }
           }

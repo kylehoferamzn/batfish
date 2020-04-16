@@ -10,6 +10,9 @@ pom.xml.versionsBackup
 target/
 .project/
 
+# Build Artifacts
+/projects/batfish/gen/
+
 # Ignore the list of java files to format-check
 /files_to_check
 
@@ -42,3 +45,6 @@ coverage*
 # Ignore python cache files
 __pycache__
 .pytest_cache/
+
+# Ignore Tokens
+*.tokens

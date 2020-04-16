@@ -34,6 +34,10 @@ public abstract class CiscoBaseLexer extends BatfishLexer {
     _cadant = cadant;
   }
 
+  public void setEos(boolean eos) {
+    _eos = eos;
+  }
+
   public void setFoundry(boolean foundry) {
     _foundry = foundry;
   }
@@ -48,6 +52,10 @@ public abstract class CiscoBaseLexer extends BatfishLexer {
 
   protected final boolean isCadant() {
     return _cadant;
+  }
+
+  protected final boolean isEos() {
+    return _eos;
   }
 
   protected final boolean isFoundry() {
@@ -78,6 +86,17 @@ public abstract class CiscoBaseLexer extends BatfishLexer {
     return last == '\n' || last == '\r';
   }
 
+  // EOS banner utility function
+  protected final boolean bannerEosDelimiterFollows() {
+    if (!(getInputStream().LA(1) == 'E'
+        && getInputStream().LA(2) == 'O'
+        && getInputStream().LA(3) == 'F')) {
+      return false;
+    }
+    int last = getInputStream().LA(4);
+    return last == '\n' || last == '\r';
+  }
+
   // IOS banner utility functions
   protected final void setBannerIosDelimiter() {
     _bannerIosDelimiter = getText().codePointAt(0);
@@ -102,6 +121,7 @@ public abstract class CiscoBaseLexer extends BatfishLexer {
 
   private boolean _asa = false;
   private boolean _cadant = false;
+  private boolean _eos = false;
   private boolean _foundry = false;
   private boolean _ios = false;
 
@@ -114,6 +134,7 @@ public abstract class CiscoBaseLexer extends BatfishLexer {
     StringBuilder sb = new StringBuilder();
     sb.append("_asa: " + _asa + "\n");
     sb.append("_cadant: " + _cadant + "\n");
+    sb.append("_eos: " + _eos + "\n");
     sb.append("_foundry: " + _foundry + "\n");
     sb.append("_ios: " + _ios + "\n");
     sb.append("_enableAclNum: " + _enableAclNum + "\n");

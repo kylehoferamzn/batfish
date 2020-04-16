@@ -169,7 +169,7 @@ public class CumulusFrrGrammarTest {
         Batfish.parse(parser, new BatfishLogger(BatfishLogger.LEVELSTR_FATAL, false), settings);
     ParseTreeWalker walker = new BatfishParseTreeWalker(parser);
     CumulusFrrConfigurationBuilder cb =
-        new CumulusFrrConfigurationBuilder(_config, parser, _warnings, src);
+        new CumulusFrrConfigurationBuilder(_config, parser, _warnings);
     walker.walk(cb, tree);
     _config = SerializationUtils.clone(_config);
   }
@@ -204,7 +204,11 @@ public class CumulusFrrGrammarTest {
   @Test
   public void testBgpAddressFamilyIpv4UnicastNetwork() {
     parseLines(
-        "router bgp 1", "address-family ipv4 unicast", "network 1.2.3.4/24", "exit-address-family");
+        "router bgp 1\n", "address-family ipv4 unicast\n", "network 1.2.3.4/24 route-map RM_TEST\n", "exit-address-family\n");
+    BgpNetwork network = new BgpNetwork(Prefix.parse("1.2.3.4/24"), "RM_TEST");
+
+    assertThat(_frr.getBgpProcess().getDefaultVrf().getIpv4Unicast().getNetworks().values(),
+        contains(network));
     assertThat(
         _frr.getBgpProcess().getDefaultVrf().getIpv4Unicast().getNetworks().keySet(),
         contains(Prefix.parse("1.2.3.4/24")));
@@ -744,7 +748,7 @@ public class CumulusFrrGrammarTest {
         vrf.getStaticRoutes(),
         equalTo(
             ImmutableSet.of(
-                new StaticRoute(Prefix.parse("1.0.0.0/8"), null, NULL_INTERFACE_NAME))));
+                new StaticRoute(Prefix.parse("1.0.0.0/8"), null, "blackhole"))));
   }
 
   @Test
@@ -1226,11 +1230,13 @@ public class CumulusFrrGrammarTest {
 
   @Test
   public void testBgpNetwork() {
-    Prefix network = Prefix.parse("10.0.0.0/8");
-    parseLines("router bgp 10000", "network 10.0.0.0/8");
+    Prefix prefix = Prefix.parse("10.0.0.0/8");
+    String routeMap = "RM_TEST";
+
+    parseLines("router bgp 10000", "network 10.0.0.0/8 route-map RM_TEST");
     assertThat(
         _config.getBgpProcess().getDefaultVrf().getNetworks(),
-        equalTo(ImmutableMap.of(network, new BgpNetwork(network))));
+        equalTo(ImmutableMap.of(prefix, new BgpNetwork(prefix, routeMap))));
   }
 
   @Test

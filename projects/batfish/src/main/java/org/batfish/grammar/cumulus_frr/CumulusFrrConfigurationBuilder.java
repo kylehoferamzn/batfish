@@ -17,6 +17,7 @@ import static org.batfish.representation.cumulus.CumulusStructureType.ROUTE_MAP;
 import static org.batfish.representation.cumulus.CumulusStructureType.VRF;
 import static org.batfish.representation.cumulus.CumulusStructureUsage.BGP_IPV4_UNICAST_REDISTRIBUTE_CONNECTED_ROUTE_MAP;
 import static org.batfish.representation.cumulus.CumulusStructureUsage.BGP_IPV4_UNICAST_REDISTRIBUTE_STATIC_ROUTE_MAP;
+import static org.batfish.representation.cumulus.CumulusStructureUsage.BGP_NETWORK_ROUTE_MAP;
 import static org.batfish.representation.cumulus.CumulusStructureUsage.ROUTE_MAP_CALL;
 import static org.batfish.representation.cumulus.CumulusStructureUsage.ROUTE_MAP_MATCH_COMMUNITY_LIST;
 import static org.batfish.representation.cumulus.CumulusStructureUsage.ROUTE_MAP_SET_COMM_LIST_DELETE;
@@ -122,7 +123,6 @@ import org.batfish.grammar.cumulus_frr.CumulusFrrParser.Sbn_peer_group_declConte
 import org.batfish.grammar.cumulus_frr.CumulusFrrParser.Sbnobd_ipv4_unicastContext;
 import org.batfish.grammar.cumulus_frr.CumulusFrrParser.Sbnp_descriptionContext;
 import org.batfish.grammar.cumulus_frr.CumulusFrrParser.Sbnp_ebgp_multihopContext;
-import org.batfish.grammar.cumulus_frr.CumulusFrrParser.Sbnp_local_asContext;
 import org.batfish.grammar.cumulus_frr.CumulusFrrParser.Sbnp_peer_groupContext;
 import org.batfish.grammar.cumulus_frr.CumulusFrrParser.Sbnp_remote_asContext;
 import org.batfish.grammar.cumulus_frr.CumulusFrrParser.Sbnp_update_sourceContext;
@@ -192,7 +192,6 @@ public class CumulusFrrConfigurationBuilder extends CumulusFrrParserBaseListener
   private final CumulusFrrConfiguration _frr;
   private final CumulusFrrCombinedParser _parser;
   private final Warnings _w;
-  private final String _text;
 
   private @Nullable Vrf _currentVrf;
   private @Nullable RouteMapEntry _currentRouteMapEntry;
@@ -204,15 +203,11 @@ public class CumulusFrrConfigurationBuilder extends CumulusFrrParserBaseListener
   private @Nullable FrrInterface _currentInterface;
 
   public CumulusFrrConfigurationBuilder(
-      CumulusConcatenatedConfiguration configuration,
-      CumulusFrrCombinedParser parser,
-      Warnings w,
-      String fullText) {
+      CumulusConcatenatedConfiguration configuration, CumulusFrrCombinedParser parser, Warnings w) {
     _c = configuration;
     _frr = configuration.getFrrConfiguration();
     _parser = parser;
     _w = w;
-    _text = fullText;
   }
 
   CumulusConcatenatedConfiguration getVendorConfiguration() {
@@ -274,20 +269,12 @@ public class CumulusFrrConfigurationBuilder extends CumulusFrrParserBaseListener
     }
   }
 
-  /** Return the text of a given rule context */
-  @Nonnull
-  String getFullText(ParserRuleContext ctx) {
-    int start = ctx.getStart().getStartIndex();
-    int end = ctx.getStop().getStopIndex();
-    return _text.substring(start, end + 1);
-  }
-
   private void todo(ParserRuleContext ctx) {
-    _w.todo(ctx, getFullText(ctx), _parser);
+    _w.todo(ctx, ctx.getText(), _parser);
   }
 
   private void warn(ParserRuleContext ctx, String message) {
-    _w.addWarning(ctx, getFullText(ctx), _parser, message);
+    _w.addWarning(ctx, ctx.getText(), _parser, message);
   }
 
   private LongExpr toMetricLongExpr(Int_exprContext ctx) {
@@ -408,10 +395,18 @@ public class CumulusFrrConfigurationBuilder extends CumulusFrrParserBaseListener
 
   @Override
   public void exitSbafi_network(Sbafi_networkContext ctx) {
-    _currentBgpVrf
-        .getIpv4Unicast()
-        .getNetworks()
-        .computeIfAbsent(Prefix.parse(ctx.IP_PREFIX().getText()), BgpNetwork::new);
+    String routeMap = null;
+    if (ctx.route_map_name() != null) {
+      routeMap = ctx.route_map_name().getText();
+      _c.referenceStructure(ROUTE_MAP, routeMap, BGP_NETWORK_ROUTE_MAP, ctx.getStart().getLine());
+    }
+
+    _currentBgpVrf.getIpv4Unicast()
+        .addNetwork(Prefix.parse(ctx.IP_PREFIX().getText()), routeMap);
+//    _currentBgpVrf
+//        .getIpv4Unicast()
+//        .getNetworks()
+//        .computeIfAbsent(Prefix.parse(ctx.IP_PREFIX().getText()), BgpNetwork::new);
   }
 
   @Override
@@ -441,20 +436,6 @@ public class CumulusFrrConfigurationBuilder extends CumulusFrrParserBaseListener
     if (aggregateNetworks.put(prefix, agg) != null) {
       _w.addWarning(
           ctx, ctx.getText(), _parser, "Overwriting aggregate-address for " + prefix.toString());
-    }
-  }
-
-  @Override
-  public void exitSbnp_local_as(Sbnp_local_asContext ctx) {
-    long asn = Long.parseLong(ctx.autonomous_system().getText());
-    if (_currentBgpNeighbor == null) {
-      _w.addWarning(ctx, ctx.getText(), _parser, "cannot find bgp neighbor");
-      return;
-    }
-    _currentBgpNeighbor.setLocalAs(asn);
-    // TODO: Handle no-prepend and replace-as.
-    if (ctx.NO_PREPEND() != null || ctx.REPLACE_AS() != null) {
-      todo(ctx);
     }
   }
 
@@ -530,7 +511,13 @@ public class CumulusFrrConfigurationBuilder extends CumulusFrrParserBaseListener
 
   @Override
   public void exitSb_network(Sb_networkContext ctx) {
-    _currentBgpVrf.addNetwork(toPrefix(ctx.prefix()));
+    // A bit of duplication, but I think I'd need some abstract class to interact with contexts.
+    String routeMap = null;
+    if (ctx.route_map_name() != null) {
+      routeMap = ctx.route_map_name().getText();
+      _c.referenceStructure(ROUTE_MAP, routeMap, BGP_NETWORK_ROUTE_MAP, ctx.getStart().getLine());
+    }
+    _currentBgpVrf.addNetwork(Prefix.parse(ctx.IP_PREFIX().getText()), routeMap);
   }
 
   @Override
@@ -877,14 +864,10 @@ public class CumulusFrrConfigurationBuilder extends CumulusFrrParserBaseListener
   @Override
   public void exitSv_route(Sv_routeContext ctx) {
     Prefix network = Prefix.parse(ctx.prefix().getText());
-    Ip nextHopIp = null;
-    String nextHopInterface = null;
-    if (ctx.BLACKHOLE() != null) {
-      nextHopInterface = NULL_INTERFACE_NAME;
-    } else {
-      nextHopIp = toIp(ctx.ip_address());
-    }
-    _currentVrf.getStaticRoutes().add(new StaticRoute(network, nextHopIp, nextHopInterface));
+    final String next_hop_interface = ctx.next_hop_interface != null ? ctx.next_hop_interface.getText() : null;
+    final Ip next_hop_ip = ctx.next_hop_ip != null ? Ip.parse(ctx.next_hop_ip.getText()) : null;
+
+    _currentVrf.getStaticRoutes().add(new StaticRoute(network, next_hop_ip, next_hop_interface));
   }
 
   @Override

@@ -1,0 +1,6 @@
+hostname
+# ports.conf --
+frr version asdf
+router bgp 1
+  bgp router-id 1.1.1.1
+  network 2.2.2.2/24 route-map RM_TEST

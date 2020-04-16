@@ -8,6 +8,7 @@ import static org.batfish.common.util.CollectionUtil.toImmutableSortedMap;
 import static org.batfish.datamodel.Configuration.DEFAULT_VRF_NAME;
 import static org.batfish.datamodel.MultipathEquivalentAsPathMatchMode.EXACT_PATH;
 import static org.batfish.datamodel.MultipathEquivalentAsPathMatchMode.PATH_LENGTH;
+import static org.batfish.datamodel.Names.generatedBgpDefaultRouteExportPolicyName;
 import static org.batfish.datamodel.bgp.VniConfig.importRtPatternForAnyAs;
 import static org.batfish.representation.cumulus.BgpProcess.BGP_UNNUMBERED_IP;
 import static org.batfish.representation.cumulus.CumulusNcluConfiguration.CUMULUS_CLAG_DOMAIN_ID;
@@ -25,6 +26,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -183,6 +185,10 @@ public final class CumulusConversions {
     return String.format("~AGGREGATE_ROUTE%s_GEN:%s:%s~", ipv4 ? "" : "6", vrfName, prefix);
   }
 
+  public static String computeBgpNetworkGenerationPolicyName(boolean ipv4, String vrfName, String prefix) {
+    return String.format("~NETWORK_ROUTE%s_GEN:%s:%s~", ipv4 ? "" : "6", vrfName, prefix);
+  }
+
   public static String computeMatchSuppressedSummaryOnlyPolicyName(String vrfName) {
     return String.format("~MATCH_SUPPRESSED_SUMMARY_ONLY:%s~", vrfName);
   }
@@ -268,6 +274,27 @@ public final class CumulusConversions {
                 })
             .collect(ImmutableList.toImmutableList()));
   }
+
+
+  /**
+   *  Originates network statements
+   */
+  static void originateNetworkStatementRoutes(
+      Configuration c,
+      BgpVrf bgpVrf,
+      BgpIpv4UnicastAddressFamily bgpIpv4UnicastAddressFamily) {
+
+    Stream.concat(bgpVrf.getNetworks().values().stream(),
+        bgpIpv4UnicastAddressFamily.getNetworks().values().stream()).forEach(bgpNetwork -> {
+
+      GeneratedRoute gr = GeneratedRoute.builder()
+          .setNetwork(bgpNetwork.getNetwork())
+          .setAttributePolicy(bgpNetwork.getRouteMap())
+          .build();
+        });
+
+  }
+
 
   /**
    * Creates generated routes and route generation policies for aggregate routes for the input vrf.
@@ -435,11 +462,16 @@ public final class CumulusConversions {
           firstNonNull(bgpVrf.getIpv4Unicast(), new BgpIpv4UnicastAddressFamily());
 
       // Add networks from network statements to new process's origination space
-      Sets.union(bgpVrf.getNetworks().keySet(), ipv4Unicast.getNetworks().keySet())
-          .forEach(newProc::addToOriginationSpace);
+
+      // Network statements are unconditionally originated in FRR, with policy and so done per peer.
+//      Sets.union(bgpVrf.getNetworks().keySet(), ipv4Unicast.getNetworks().keySet())
+//          .forEach(newProc::addToOriginationSpace);
 
       // Generate aggregate routes
       generateGeneratedRoutes(c, c.getVrfs().get(vrfName), ipv4Unicast.getAggregateNetworks());
+
+      //Generate network statement routes
+      generateNetworkStatementOriginatedRoutes(c, bgpVrf);
     }
 
     generateBgpCommonExportPolicy(c, vrfName, bgpVrf, vsConfig.getRouteMaps());
@@ -455,27 +487,17 @@ public final class CumulusConversions {
       BgpNeighbor neighbor,
       Warnings w) {
 
+    Long localAs = bgpVrf.getAutonomousSystem();
     org.batfish.datamodel.BgpProcess viBgpProcess =
         c.getVrfs().get(bgpVrf.getVrfName()).getBgpProcess();
-    neighbor.inheritFrom(bgpVrf.getNeighbors());
-    Long localAs = null;
-    if (neighbor.getLocalAs() != null) {
-      localAs = neighbor.getLocalAs();
-    } else if (bgpVrf.getAutonomousSystem() != null) {
-      localAs = bgpVrf.getAutonomousSystem();
-    }
 
     if (neighbor instanceof BgpInterfaceNeighbor) {
       BgpInterfaceNeighbor interfaceNeighbor = (BgpInterfaceNeighbor) neighbor;
-      if (interfaceNeighbor.getLocalAs() != null) {
-        localAs = interfaceNeighbor.getLocalAs();
-      }
+      interfaceNeighbor.inheritFrom(bgpVrf.getNeighbors());
       addInterfaceBgpNeighbor(c, vsConfig, interfaceNeighbor, localAs, bgpVrf, viBgpProcess, w);
     } else if (neighbor instanceof BgpIpNeighbor) {
       BgpIpNeighbor ipNeighbor = (BgpIpNeighbor) neighbor;
-      if (ipNeighbor.getLocalAs() != null) {
-        localAs = ipNeighbor.getLocalAs();
-      }
+      ipNeighbor.inheritFrom(bgpVrf.getNeighbors());
       addIpv4BgpNeighbor(c, vsConfig, ipNeighbor, localAs, bgpVrf, viBgpProcess, w);
     } else if (!(neighbor instanceof BgpPeerGroupNeighbor)) {
       throw new IllegalArgumentException(
@@ -531,6 +553,14 @@ public final class CumulusConversions {
     RoutingPolicy exportRoutingPolicy = computeBgpNeighborExportRoutingPolicy(c, neighbor, bgpVrf);
     @Nullable
     RoutingPolicy importRoutingPolicy = computeBgpNeighborImportRoutingPolicy(c, neighbor, bgpVrf);
+
+    // Hack to add support for network statements.  The right way to do this will be to add support for
+    // Unconditional origination of network statements (no rib-resolution) and support routing policy
+    // for these routes.  The artifact of this hack is that local-rib does NOT display the network statements as expected
+    //  However, all other functionality happens as expected.
+
+
+
 
     peerConfigBuilder
         .setBgpProcess(newProc)
@@ -624,6 +654,27 @@ public final class CumulusConversions {
         c, vsConfig, neighbor, localAs, bgpVrf, newProc, peerConfigBuilder, w);
   }
 
+  private static ArrayList<GeneratedRoute> getGeneratedRoutesForNetworkStatements(BgpVrf bgpVrf,
+      RoutingPolicy peerExportPolicy){
+    ArrayList<GeneratedRoute> generatedRoutes = new ArrayList<>();
+    // Make sure we actually have ipv4 bgp
+    if (bgpVrf.isIpv4UnicastActive()) {
+      BgpIpv4UnicastAddressFamily ipv4Unicast = firstNonNull(bgpVrf.getIpv4Unicast(), new BgpIpv4UnicastAddressFamily());
+
+      // Advertise network statements without rib-resolution and with routing policy attached
+      Stream.concat(bgpVrf.getNetworks().values().stream(),
+          ipv4Unicast.getNetworks().values().stream()).forEach(bgpNetwork -> {
+            GeneratedRoute defaultRoute = GeneratedRoute.builder()
+                .setNetwork(bgpNetwork.getNetwork())
+                .setAttributePolicy()
+                .build();
+
+          });
+
+    }
+  }
+
+
   @Nonnull
   private static RoutingPolicy computeBgpNeighborExportRoutingPolicy(
       Configuration c, BgpNeighbor neighbor, BgpVrf bgpVrf) {
@@ -648,6 +699,47 @@ public final class CumulusConversions {
 
       peerExportPolicy.addStatement(REJECT_DEFAULT_ROUTE);
     }
+
+    // Make sure we actually have ipv4 bgp
+    if (bgpVrf.isIpv4UnicastActive()) {
+      BgpIpv4UnicastAddressFamily ipv4Unicast =
+          firstNonNull(bgpVrf.getIpv4Unicast(), new BgpIpv4UnicastAddressFamily());
+
+      // Advertise network statements without rib-resolution and with routing policy attached
+      Stream.concat(bgpVrf.getNetworks().values().stream(),
+          ipv4Unicast.getNetworks().values().stream()).forEach(bgpNetwork -> {
+              GeneratedRoute defaultRoute =
+                  GeneratedRoute.builder()
+                      .setNetwork(Prefix.ZERO)
+                      .setAdmin(MAX_ADMINISTRATIVE_COST)
+                      .setGenerationPolicy(naf.getDefaultOriginateMap())
+                      .build();
+        neighbor.setGene
+      });
+
+
+
+    }
+
+    // If defaultOriginate is set, generate route and default route export policy. Default route
+    // will match this policy and get exported without going through the rest of the export policy.
+    // TODO Verify that nextHopSelf and removePrivateAs settings apply to default-originate route.
+//    if (firstNonNull(naf.getDefaultOriginate(), Boolean.FALSE)) {
+//      initBgpDefaultRouteExportPolicy(configuration);
+//      statementsBuilder.add(
+//          new If(
+//              "Export default route from peer with default-originate configured",
+//              new CallExpr(generatedBgpDefaultRouteExportPolicyName(true)),
+//              singletonList(Statements.ReturnTrue.toStaticStatement()),
+//              ImmutableList.of()));
+//
+//      GeneratedRoute defaultRoute =
+//          GeneratedRoute.builder()
+//              .setNetwork(Prefix.ZERO)
+//              .setAdmin(MAX_ADMINISTRATIVE_COST)
+//              .setGenerationPolicy(naf.getDefaultOriginateMap())
+//              .build();
+//      newNeighborBuilder.setGeneratedRoutes(ImmutableSet.of(defaultRoute));
 
     BooleanExpr peerExportConditions = computePeerExportConditions(neighbor, bgpVrf);
     List<Statement> acceptStmts = getAcceptStatements(neighbor, bgpVrf);
@@ -946,29 +1038,39 @@ public final class CumulusConversions {
       exportConditions.add(exportProtocolConditions);
     }
 
-    // create origination prefilter from listed advertised networks
-    Sets.union(bgpVrf.getNetworks().keySet(), bgpIpv4UnicastAddressFamily.getNetworks().keySet())
-        .forEach(
-            prefix -> {
-              BooleanExpr weExpr = BooleanExprs.TRUE;
-              BooleanExpr we = bgpRedistributeWithEnvironmentExpr(weExpr, OriginType.IGP);
-              Conjunction exportNetworkConditions = new Conjunction();
-              exportNetworkConditions
-                  .getConjuncts()
-                  .add(
-                      new MatchPrefixSet(
-                          DestinationNetwork.instance(),
-                          new ExplicitPrefixSet(new PrefixSpace(PrefixRange.fromPrefix(prefix)))));
-              /*
-              Don't need to explicitly exclude BGP and iBGP routes here because those routes will
-              already be matched earlier in exportConditions (which are disjuncts).
-               */
-              exportNetworkConditions
-                  .getConjuncts()
-                  .add(new Not(new MatchProtocol(RoutingProtocol.AGGREGATE)));
-              exportNetworkConditions.getConjuncts().add(we);
-              exportConditions.add(exportNetworkConditions);
-            });
+    // Network statements
+//    Stream.concat(bgpVrf.getNetworks().values().stream(),
+//        bgpIpv4UnicastAddressFamily.getNetworks().values().stream())
+//        .forEach(
+//            bgpNetwork -> {
+//              @Nullable String routeMap = bgpNetwork.getRouteMap();
+//              PrefixSpace prefixSpace =
+//                new PrefixSpace(PrefixRange.fromPrefix(bgpNetwork.getNetwork()));
+//              BooleanExpr weExpr = BooleanExprs.TRUE;
+//              BooleanExpr we = bgpRedistributeWithEnvironmentExpr(weExpr, OriginType.IGP);
+//              Conjunction exportNetworkConditions = new Conjunction();
+//              exportNetworkConditions
+//                  .getConjuncts()
+//                  .add(
+//                      new MatchPrefixSet(
+//                          DestinationNetwork.instance(),
+//                          new ExplicitPrefixSet(prefixSpace)));
+//
+//              exportNetworkConditions
+//                  .getConjuncts()
+//                  .add(new Not(new MatchProtocol(RoutingProtocol.AGGREGATE)));
+//
+//              exportNetworkConditions.getConjuncts()
+//                  .add(bgpRedistributeWithEnvironmentExpr(
+//                        routeMap != null && routeMaps.containsKey(routeMap)
+//                            ? new CallExpr(routeMap)
+//                            : BooleanExprs.TRUE,
+//                        OriginType.IGP));
+//
+//              exportNetworkConditions.getConjuncts().add(we);
+//              exportConditions.add(exportNetworkConditions);
+//        });
+
     return exportConditions;
   }
 

@@ -1590,7 +1590,7 @@ public class Batfish extends PluginConsumer implements IBatfish {
     }
   }
 
-  void outputAnswerMetadata(Answer answer) throws IOException {
+  void outputAnswerMetadata(Answer answer) {
     QuestionId questionId = _settings.getQuestionName();
     if (questionId == null) {
       return;
@@ -1607,7 +1607,7 @@ public class Batfish extends PluginConsumer implements IBatfish {
         questionSettingsId = QuestionSettingsId.DEFAULT_QUESTION_SETTINGS_ID;
       }
     } catch (IOException e) {
-      throw new IOException("Failed to retrieve question settings ID", e);
+      throw new BatfishException("Failed to retrieve question settings ID", e);
     }
     NodeRolesId networkNodeRolesId =
         _idResolver.hasNetworkNodeRolesId(networkId)
@@ -2632,6 +2632,7 @@ public class Batfish extends PluginConsumer implements IBatfish {
               .putBoolean(settings.getPrintParseTree())
               .putBoolean(settings.getThrowOnLexerError())
               .putBoolean(settings.getThrowOnParserError())
+              .putBoolean(settings.getUseAristaBgp())
               .hash()
               .toString();
       long startTime = System.currentTimeMillis();
@@ -3251,7 +3252,7 @@ public class Batfish extends PluginConsumer implements IBatfish {
         .collect(ImmutableSet.toImmutableSet());
   }
 
-  private void writeJsonAnswer(String structuredAnswerString) throws IOException {
+  private void writeJsonAnswer(String structuredAnswerString) {
     SnapshotId deltaSnapshot = _settings.getDiffQuestion() ? _deltaTestrigSettings.getName() : null;
     NetworkId networkId = _settings.getContainer();
     QuestionId questionId = _settings.getQuestionName();
@@ -3283,8 +3284,7 @@ public class Batfish extends PluginConsumer implements IBatfish {
     _storage.storeAnswer(structuredAnswerString, baseAnswerId);
   }
 
-  private void writeJsonAnswerWithLog(@Nullable String logString, String structuredAnswerString)
-      throws IOException {
+  private void writeJsonAnswerWithLog(@Nullable String logString, String structuredAnswerString) {
     // Write log of WorkItem task to the configured path for logs
     if (logString != null && _settings.getTaskId() != null) {
       Path jsonPath =
