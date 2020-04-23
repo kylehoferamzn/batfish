@@ -17,6 +17,7 @@ import static org.batfish.representation.cumulus.CumulusStructureType.VRF;
 import static org.batfish.representation.cumulus.CumulusStructureUsage.BGP_IPV4_UNICAST_REDISTRIBUTE_CONNECTED_ROUTE_MAP;
 import static org.batfish.representation.cumulus.CumulusStructureUsage.BGP_IPV4_UNICAST_REDISTRIBUTE_STATIC_ROUTE_MAP;
 import static org.batfish.representation.cumulus.CumulusStructureUsage.ROUTE_MAP_CALL;
+import static org.batfish.representation.cumulus.CumulusStructureUsage.BGP_NETWORK_ROUTE_MAP;
 import static org.batfish.representation.cumulus.CumulusStructureUsage.ROUTE_MAP_MATCH_COMMUNITY_LIST;
 import static org.batfish.representation.cumulus.CumulusStructureUsage.ROUTE_MAP_SET_COMM_LIST_DELETE;
 import static org.batfish.representation.cumulus.RemoteAsType.EXPLICIT;
@@ -407,10 +408,18 @@ public class CumulusFrrConfigurationBuilder extends CumulusFrrParserBaseListener
 
   @Override
   public void exitSbafi_network(Sbafi_networkContext ctx) {
-    _currentBgpVrf
-        .getIpv4Unicast()
-        .getNetworks()
-        .computeIfAbsent(Prefix.parse(ctx.IP_PREFIX().getText()), BgpNetwork::new);
+    String routeMap = null;
+    if (ctx.route_map_name() != null) {
+      routeMap = ctx.route_map_name().getText();
+      _c.referenceStructure(ROUTE_MAP, routeMap, BGP_NETWORK_ROUTE_MAP, ctx.getStart().getLine());
+    }
+
+    _currentBgpVrf.getIpv4Unicast()
+        .addNetwork(Prefix.parse(ctx.IP_PREFIX().getText()), routeMap);
+    //    _currentBgpVrf
+    //        .getIpv4Unicast()
+    //        .getNetworks()
+    //        .computeIfAbsent(Prefix.parse(ctx.IP_PREFIX().getText()), BgpNetwork::new);
   }
 
   @Override
@@ -529,7 +538,13 @@ public class CumulusFrrConfigurationBuilder extends CumulusFrrParserBaseListener
 
   @Override
   public void exitSb_network(Sb_networkContext ctx) {
-    _currentBgpVrf.addNetwork(toPrefix(ctx.prefix()));
+    // A bit of duplication, but I think I'd need some abstract class to interact with contexts.
+    String routeMap = null;
+    if (ctx.route_map_name() != null) {
+      routeMap = ctx.route_map_name().getText();
+      _c.referenceStructure(ROUTE_MAP, routeMap, BGP_NETWORK_ROUTE_MAP, ctx.getStart().getLine());
+    }
+    _currentBgpVrf.addNetwork(Prefix.parse(ctx.IP_PREFIX().getText()), routeMap);
   }
 
   @Override

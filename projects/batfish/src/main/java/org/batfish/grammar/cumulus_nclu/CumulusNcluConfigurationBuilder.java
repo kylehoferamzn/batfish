@@ -930,10 +930,7 @@ public class CumulusNcluConfigurationBuilder extends CumulusNcluParserBaseListen
 
   @Override
   public void exitBi4_network(Bi4_networkContext ctx) {
-    _currentBgpVrf
-        .getIpv4Unicast()
-        .getNetworks()
-        .computeIfAbsent(toPrefix(ctx.network), BgpNetwork::new);
+    _currentBgpVrf.addNetwork(toPrefix(ctx.network), null);
   }
 
   @Override

@@ -106,11 +106,11 @@ public class BgpVrf implements Serializable {
     return _networks;
   }
 
-  public void addNetwork(Prefix network) {
+  public void addNetwork(Prefix network, @Nullable String routeMap) {
     _networks =
         ImmutableMap.<Prefix, BgpNetwork>builder()
             .putAll(_networks)
-            .put(network, new BgpNetwork(network))
+            .put(network, new BgpNetwork(network, routeMap))
             .build();
   }
 }

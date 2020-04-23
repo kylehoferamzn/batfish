@@ -33,6 +33,7 @@ import static org.batfish.representation.cumulus.CumulusConversions.toOspfProces
 import static org.batfish.representation.cumulus.CumulusConversions.toRouteFilterLine;
 import static org.batfish.representation.cumulus.CumulusConversions.toRouteFilterList;
 import static org.batfish.representation.cumulus.CumulusConversions.toRouteTarget;
+import static org.batfish.representation.cumulus.CumulusConversions.computeBgpPeerNetworkStatementExportPolicyName;
 import static org.batfish.representation.cumulus.CumulusNodeConfiguration.LOOPBACK_INTERFACE_NAME;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
@@ -78,6 +79,8 @@ import org.batfish.datamodel.LineAction;
 import org.batfish.datamodel.NetworkFactory;
 import org.batfish.datamodel.OriginType;
 import org.batfish.datamodel.Prefix;
+import org.batfish.datamodel.PrefixRange;
+import org.batfish.datamodel.PrefixSpace;
 import org.batfish.datamodel.RouteFilterLine;
 import org.batfish.datamodel.RouteFilterList;
 import org.batfish.datamodel.RoutingProtocol;
@@ -95,11 +98,18 @@ import org.batfish.datamodel.routing_policy.Environment.Direction;
 import org.batfish.datamodel.routing_policy.Result;
 import org.batfish.datamodel.routing_policy.RoutingPolicy;
 import org.batfish.datamodel.routing_policy.expr.BooleanExpr;
+import org.batfish.datamodel.routing_policy.expr.DestinationNetwork;
+import org.batfish.datamodel.routing_policy.expr.ExplicitPrefixSet;
 import org.batfish.datamodel.routing_policy.expr.LiteralCommunity;
+import org.batfish.datamodel.routing_policy.expr.LiteralLong;
 import org.batfish.datamodel.routing_policy.expr.MatchCommunitySet;
+import org.batfish.datamodel.routing_policy.expr.MatchPrefixSet;
 import org.batfish.datamodel.routing_policy.expr.Not;
+import org.batfish.datamodel.routing_policy.expr.PrefixSetExpr;
 import org.batfish.datamodel.routing_policy.expr.SelfNextHop;
 import org.batfish.datamodel.routing_policy.statement.If;
+import org.batfish.datamodel.routing_policy.statement.SetCommunity;
+import org.batfish.datamodel.routing_policy.statement.SetLocalPreference;
 import org.batfish.datamodel.routing_policy.statement.SetNextHop;
 import org.batfish.datamodel.routing_policy.statement.Statement;
 import org.batfish.datamodel.routing_policy.statement.Statements;
@@ -524,7 +534,7 @@ public final class CumulusConversionsTest {
     Prefix prefix = Prefix.parse("1.2.3.0/24");
     BgpVrf vrf = bgpProcess.getDefaultVrf();
     vrf.setRouterId(Ip.parse("1.1.1.1"));
-    vrf.addNetwork(prefix);
+    vrf.addNetwork(prefix, null);
 
     // the method under test
     org.batfish.datamodel.BgpProcess viBgp =
@@ -564,7 +574,7 @@ public final class CumulusConversionsTest {
     Prefix prefix = Prefix.parse("1.2.3.0/24");
     BgpVrf vrf = bgpProcess.getDefaultVrf();
     vrf.setRouterId(Ip.parse("1.1.1.1"));
-    vrf.addNetwork(prefix);
+    vrf.addNetwork(prefix, null);
     vrf.setDefaultIpv4Unicast(false);
 
     // the method under test
@@ -706,7 +716,6 @@ public final class CumulusConversionsTest {
 
     CumulusNcluConfiguration vsConfig = new CumulusNcluConfiguration();
     vsConfig.setConfiguration(viConfig);
-
     BgpActivePeerConfig.Builder peerConfigBuilder =
         BgpActivePeerConfig.builder().setPeerAddress(peerIp);
     generateBgpCommonPeerConfig(
@@ -733,6 +742,158 @@ public final class CumulusConversionsTest {
             .getStatements()
             .get(1),
         equalTo(REJECT_DEFAULT_ROUTE));
+  }
+
+  @Test
+  public void testGenerateBgpCommonPeerConfig_networkStatementOrigination() {
+    // New test for Route-Maps
+    // Build basic BGP Peer
+    Ip peerIp = Ip.parse("10.0.0.2");
+    BgpIpNeighbor neighbor = new BgpIpNeighbor("BgpNeighbor");
+    neighbor.setRemoteAs(10000L);
+    neighbor.setRemoteAsType(RemoteAsType.INTERNAL);
+    neighbor.setPeerIp(peerIp);
+
+    //Vi Config
+    Configuration viConfig =
+        _nf.configurationBuilder().setConfigurationFormat(ConfigurationFormat.CUMULUS_CONCATENATED).build();
+
+    //Vs Config
+    CumulusNcluConfiguration vsConfig = new CumulusNcluConfiguration();
+    vsConfig.setConfiguration(viConfig);
+
+    //Spawn BGP Process
+    BgpProcess bgpProcess = new BgpProcess();
+    vsConfig.setBgpProcess(bgpProcess);
+    vsConfig.setConfiguration(viConfig);
+
+    //Setup Host Config
+    Configuration config = new Configuration("host", ConfigurationFormat.CUMULUS_CONCATENATED);
+
+    //Setup BGP Vrf
+    BgpVrf vrf = bgpProcess.getDefaultVrf();
+    vrf.setRouterId(Ip.parse("1.1.1.1"));
+    BgpIpv4UnicastAddressFamily ipv4Unicast = new BgpIpv4UnicastAddressFamily();
+    Prefix prefix_1 = Prefix.parse("1.1.1.0/24");
+    Prefix prefix_2 = Prefix.parse("1.1.2.0/24");
+
+    //Add Network Statements with Routing Policy to BGP Vrf
+    vrf.addNetwork(prefix_1, "RM_NETWORK_STATEMENT_TEST");
+    vrf.addNetwork(prefix_2, "RM_NETWORK_STATEMENT_TEST");
+
+    // Generate Network Statement Routing Policy Name
+    String bgpPeerNetworkStatementExportPolicyName = computeBgpPeerNetworkStatementExportPolicyName(
+        vrf.getVrfName(),
+        neighbor.getName(),
+        "RM_NETWORK_STATEMENT_TEST");
+
+    // Generate Peer Export Policy Name
+    String bgpPeerExportPolicyName = computeBgpPeerExportPolicyName(vrf.getVrfName(),
+        neighbor.getName());
+
+    // Setup neighbor address family
+    BgpNeighborIpv4UnicastAddressFamily ipv4UnicastAddressFamily =
+        new BgpNeighborIpv4UnicastAddressFamily();
+    ipv4UnicastAddressFamily.setRouteMapOut(bgpPeerExportPolicyName);
+    neighbor.setIpv4UnicastAddressFamily(ipv4UnicastAddressFamily);
+
+    org.batfish.datamodel.BgpProcess newProc =
+        new org.batfish.datamodel.BgpProcess(
+            Ip.parse("10.0.0.1"), ConfigurationFormat.CUMULUS_CONCATENATED);
+
+    BgpActivePeerConfig.Builder peerConfigBuilder =
+        BgpActivePeerConfig.builder().setPeerAddress(peerIp);
+    generateBgpCommonPeerConfig(
+        viConfig,
+        vsConfig,
+        neighbor,
+        10000L,
+        vrf,
+        newProc,
+        peerConfigBuilder,
+        new Warnings());
+
+    //Build Routing policy for network statement
+    RoutingPolicy.builder()
+        .setOwner(config)
+        .setName(bgpPeerNetworkStatementExportPolicyName)
+        .addStatement(
+            new If(
+                "Match 1.1.1.0/24 specifically",
+                new MatchPrefixSet(DestinationNetwork.instance(),
+                    new ExplicitPrefixSet(
+                        new PrefixSpace(PrefixRange.fromPrefix(Prefix.parse("1.1.1.0/24"))))),
+                ImmutableList.of(Statements.ExitAccept.toStaticStatement()),
+                ImmutableList.of(Statements.ExitReject.toStaticStatement())))
+        .setStatements(
+            ImmutableList.of(
+                new SetCommunity(new LiteralCommunity(StandardCommunity.parse("1234:1"))),
+                Statements.ExitAccept.toStaticStatement()))
+        .build();
+
+    // Routing Policy for Export
+    RoutingPolicy.builder()
+        .setOwner(config)
+        .setName(bgpPeerExportPolicyName)
+        .addStatement(
+            new If(
+                "Match 1.1.1.0/24 specifically",
+                new MatchPrefixSet(DestinationNetwork.instance(),
+                    new ExplicitPrefixSet(
+                        new PrefixSpace(PrefixRange.fromPrefix(Prefix.parse("1.1.1.0/24"))))),
+                ImmutableList.of(Statements.ExitAccept.toStaticStatement()),
+                ImmutableList.of(Statements.ExitReject.toStaticStatement())))
+        .setStatements(
+            ImmutableList.of(
+                new SetCommunity(new LiteralCommunity(StandardCommunity.parse("1234:2"))),
+                Statements.ExitAccept.toStaticStatement()))
+        .build();
+
+    //Create permitted prefix
+    GeneratedRoute GeneratedRoute_1 =
+        GeneratedRoute.builder().setNetwork(prefix_1).setAttributePolicy(
+            bgpPeerNetworkStatementExportPolicyName).build();
+
+    //Create rejected generated Route
+    GeneratedRoute GeneratedRoute_2 =
+        GeneratedRoute.builder().setNetwork(prefix_2).setAttributePolicy(
+            bgpPeerNetworkStatementExportPolicyName).build();
+
+    // there should be two generated routes
+    assertThat(
+        newProc.getActiveNeighbors().get(peerIp.toPrefix()).getGeneratedRoutes(),
+        equalTo(ImmutableSet.of(GeneratedRoute_2, GeneratedRoute_1)));
+
+    //Get the Routing Policy for the Network Statement Generated Route
+//    RoutingPolicy policy =
+//        _c.getRoutingPolicies()
+//            .get(bgpPeerExportPolicyName);
+
+    assertFalse(
+        viConfig
+            .getRoutingPolicies()
+            .get(bgpPeerNetworkStatementExportPolicyName)
+            .process(GeneratedRoute_2, Bgpv4Route.builder().setNetwork(GeneratedRoute_2.getNetwork()), Direction.OUT));
+
+    System.out.println(viConfig.getRoutingPolicies().get(bgpPeerExportPolicyName).getStatements().get(0).getComment());
+
+    assertTrue(
+        viConfig
+            .getRoutingPolicies()
+            .get(bgpPeerNetworkStatementExportPolicyName)
+            .process(GeneratedRoute_1, Bgpv4Route.builder().setNetwork(GeneratedRoute_1.getNetwork()), Direction.OUT));
+//
+//    assertFalse(
+//        policy.process(
+//            GeneratedRoute_2,
+//            Bgpv4Route.builder().setNetwork(GeneratedRoute_2.getNetwork()),
+//            Direction.OUT));
+//
+//    assertTrue(
+//        policy.process(
+//            GeneratedRoute_1,
+//            Bgpv4Route.builder().setNetwork(GeneratedRoute_1.getNetwork()),
+//            Direction.OUT));
   }
 
   @Test

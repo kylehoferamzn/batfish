@@ -20,6 +20,7 @@ public enum CumulusStructureUsage implements StructureUsage {
   INTERFACE_VRF("interface vrf"),
   LOOPBACK_SELF_REFERENCE("loopback self-reference"),
   NET_ADD_INTERFACE("net add interface"),
+  BGP_NETWORK_ROUTE_MAP("network route-map"),
   PORT_BREAKOUT("port breakout"),
   PORT_DISABLED("port disabled"),
   PORT_SPEED("port speed"),

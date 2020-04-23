@@ -1,10 +1,12 @@
 package org.batfish.representation.cumulus;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.batfish.datamodel.Prefix;
 
 /** IPv4 unicast BGP configuration for a VRF. */
@@ -20,6 +22,10 @@ public class BgpIpv4UnicastAddressFamily implements Serializable {
     _aggregateNetworks = new HashMap<>();
     _networks = new HashMap<>();
     _redistributionPolicies = new TreeMap<>();
+  }
+
+  public void addNetwork(Prefix network, @Nullable String routeMap) {
+    _networks.put(network, new BgpNetwork(network, routeMap));
   }
 
   @Nonnull
