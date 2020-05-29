@@ -1258,7 +1258,11 @@ public final class CumulusConversionsTest {
     neighbor.setRemoteAs(123L);
 
     assertThat(inferClusterId(bgpVrf, newProc.getRouterId(), neighbor), equalTo(null));
->>>>>>> ClusterId Support to FRR (#5856)
+    bgpVrf.setClusterId(null);
+
+    assertThat(
+        inferClusterId(bgpVrf, newProc.getRouterId()),
+        equalTo(Ip.parse("1.1.1.1")));
   }
 
   @Test
