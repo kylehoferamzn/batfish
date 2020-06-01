@@ -61,12 +61,13 @@ public class StaticRoute implements Serializable {
     StaticRoute rhs = (StaticRoute) obj;
     return _network.equals(rhs._network)
         && Objects.equals(_nextHopIp, rhs._nextHopIp)
-        && Objects.equals(_nextHopInterface, rhs._nextHopInterface);
+        && Objects.equals(_nextHopInterface, rhs._nextHopInterface)
+        && Objects.equals(_distance, rhs._distance);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(_network, _nextHopIp, _nextHopInterface);
+    return Objects.hash(_network, _nextHopIp, _nextHopInterface, _distance);
   }
 
   /** Convert this static route to a VI static route */
@@ -101,6 +102,7 @@ public class StaticRoute implements Serializable {
         .add("_network", _network)
         .add("_nextHopIp", _nextHopIp)
         .add("_nextHopInterface", _nextHopInterface)
+        .add("_distance", _distance)
         .toString();
   }
 }
