@@ -438,7 +438,7 @@ public class CumulusFrrGrammarTest {
     Batfish batfish =
         BatfishTestUtils.getBatfishFromTestrigText(
             TestrigText.builder()
-                .setConfigurationText(SNAPSHOTS_PREFIX + snapshotName, configurationNames)
+                .setConfigurationFiles(SNAPSHOTS_PREFIX + snapshotName, configurationNames)
                 .build(),
             _folder);
 
@@ -659,8 +659,8 @@ public class CumulusFrrGrammarTest {
     Batfish batfish =
         BatfishTestUtils.getBatfishFromTestrigText(
             TestrigText.builder()
-                .setConfigurationText(SNAPSHOTS_PREFIX + snapshotName, configurationNames)
-                .setLayer1TopologyText(SNAPSHOTS_PREFIX + snapshotName)
+                .setConfigurationFiles(SNAPSHOTS_PREFIX + snapshotName, configurationNames)
+                .setLayer1TopologyPrefix(SNAPSHOTS_PREFIX + snapshotName)
                 .build(),
             _folder);
 
