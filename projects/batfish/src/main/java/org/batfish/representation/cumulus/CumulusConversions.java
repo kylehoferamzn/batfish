@@ -183,6 +183,10 @@ public final class CumulusConversions {
     return String.format("~AGGREGATE_ROUTE%s_GEN:%s:%s~", ipv4 ? "" : "6", vrfName, prefix);
   }
 
+  public static String computeBgpNetworkGenerationPolicyName(boolean ipv4, String vrfName, String prefix) {
+    return String.format("~NETWORK_ROUTE%s_GEN:%s:%s~", ipv4 ? "" : "6", vrfName, prefix);
+  }
+  
   public static String computeMatchSuppressedSummaryOnlyPolicyName(String vrfName) {
     return String.format("~MATCH_SUPPRESSED_SUMMARY_ONLY:%s~", vrfName);
   }
@@ -270,12 +274,14 @@ public final class CumulusConversions {
   }
 
   /**
-   * Creates generated routes and route generation policies for aggregate routes for the input vrf.
+   * Creates generated routes and route generation policies for aggregate and network
+   * routes for the input vrf.
    */
   static void generateGeneratedRoutes(
       Configuration c,
       org.batfish.datamodel.Vrf vrf,
-      Map<Prefix, BgpVrfAddressFamilyAggregateNetworkConfiguration> aggregateNetworks) {
+      Map<Prefix, BgpVrfAddressFamilyAggregateNetworkConfiguration> aggregateNetworks,
+      Map<Prefix, BgpNetwork> networks) {
     aggregateNetworks.forEach(
         (prefix, agg) -> {
           generateGenerationPolicy(c, vrf.getName(), prefix);
@@ -292,6 +298,25 @@ public final class CumulusConversions {
 
           vrf.getGeneratedRoutes().add(gr);
         });
+
+    networks.forEach(
+        (prefix, bgpNetwork) -> {
+          generateNetworkGenerationPolicy(c, vrf.getName(), prefix);
+          GeneratedRoute gr =
+              GeneratedRoute.builder()
+                  .setNetwork(prefix)
+                  .setAdmin(AGGREGATE_ROUTE_ADMIN_COST)
+                  .setGenerationPolicy(
+                      computeBgpNetworkGenerationPolicyName(true, vrf.getName(), prefix.toString()))
+                  .setDiscard(true)
+                  .build();
+
+          vrf.getGeneratedRoutes().add(gr);
+        }
+
+    )
+
+
   }
 
   /**
@@ -303,6 +328,29 @@ public final class CumulusConversions {
    * @param prefix The aggregate network prefix
    */
   static void generateGenerationPolicy(Configuration c, String vrfName, Prefix prefix) {
+    RoutingPolicy.builder()
+        .setOwner(c)
+        .setName(computeBgpGenerationPolicyName(true, vrfName, prefix.toString()))
+        .addStatement(
+            new If(
+                // Match routes with destination networks more specific than prefix.
+                new MatchPrefixSet(
+                    DestinationNetwork.instance(),
+                    new ExplicitPrefixSet(new PrefixSpace(PrefixRange.moreSpecificThan(prefix)))),
+                ImmutableList.of(Statements.ReturnTrue.toStaticStatement()),
+                ImmutableList.of(Statements.ReturnFalse.toStaticStatement())))
+        .build();
+  }
+
+  /**
+   * Creates a generation policy for the aggregate network with the given {@link Prefix}. The
+   * generation policy generates unconditionally.
+   *
+   * @param c {@link Configuration} in which to create the generation policy
+   * @param vrfName Name of VRF in which the aggregate network exists
+   * @param prefix The aggregate network prefix
+   */
+  static void generateNetworkGenerationPolicy(Configuration c, String vrfName, Prefix prefix) {
     RoutingPolicy.builder()
         .setOwner(c)
         .setName(computeBgpGenerationPolicyName(true, vrfName, prefix.toString()))
@@ -440,6 +488,10 @@ public final class CumulusConversions {
 
       // Generate aggregate routes
       generateGeneratedRoutes(c, c.getVrfs().get(vrfName), ipv4Unicast.getAggregateNetworks());
+
+      // Generate Network Routes
+      generateGeneratedRoutes(c, c.getVrfs().get(vrfName), ipv4Unicast.getAggregateNetworks());
+
     }
 
     generateBgpCommonExportPolicy(c, vrfName, bgpVrf, vsConfig.getRouteMaps());
@@ -899,6 +951,8 @@ public final class CumulusConversions {
           .ifPresent(statements::add);
     }
 
+    // 2. Generate
+
     // 2. Setup export conditions, export if match, otherwise fall through
     Disjunction exportConditions = new Disjunction();
 
@@ -983,6 +1037,33 @@ public final class CumulusConversions {
               exportNetworkConditions.getConjuncts().add(we);
               exportConditions.add(exportNetworkConditions);
             });
+
+
+    // Now we add all the per-network export policies.
+    bgpIpv4UnicastAddressFamily
+        .getNetworks()
+        .forEach(
+            (prefix, bgpNetwork) -> {
+              PrefixSpace exportSpace =
+                  new PrefixSpace(PrefixRange.fromPrefix(prefix));
+              @Nullable String routeMap = bgpNetwork.getRouteMap();
+              List<BooleanExpr> exportNetworkConditions =
+                  ImmutableList.of(
+                      new MatchPrefixSet(
+                          DestinationNetwork.instance(), new ExplicitPrefixSet(exportSpace)),
+                      new Not(
+                          new MatchProtocol(
+                              RoutingProtocol.BGP,
+                              RoutingProtocol.IBGP,
+                              RoutingProtocol.AGGREGATE)),
+                      bgpRedistributeWithEnvironmentExpr(
+                          routeMap != null && _routeMaps.containsKey(routeMap)
+                              ? new CallExpr(routeMap)
+                              : BooleanExprs.TRUE,
+                          OriginType.IGP));
+              exportConditions.add(new Conjunction(exportNetworkConditions));
+            });
+
     return exportConditions;
   }
 
