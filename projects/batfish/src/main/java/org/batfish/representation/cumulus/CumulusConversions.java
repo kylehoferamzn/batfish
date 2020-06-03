@@ -281,7 +281,8 @@ public final class CumulusConversions {
       Configuration c,
       org.batfish.datamodel.Vrf vrf,
       Map<Prefix, BgpVrfAddressFamilyAggregateNetworkConfiguration> aggregateNetworks,
-      Map<Prefix, BgpNetwork> networks) {
+      Map<Prefix, BgpNetwork> networks,
+      Map<String, RouteMap> routeMaps) {
     aggregateNetworks.forEach(
         (prefix, agg) -> {
           generateGenerationPolicy(c, vrf.getName(), prefix);
@@ -302,19 +303,32 @@ public final class CumulusConversions {
     networks.forEach(
         (prefix, bgpNetwork) -> {
           generateNetworkGenerationPolicy(c, vrf.getName(), prefix);
-          GeneratedRoute gr =
+          // Create Attribute Policy
+          BooleanExpr weInterior = BooleanExprs.TRUE;
+          String attributeMapName = bgpNetwork.getRouteMap();
+
+          if (attributeMapName != null) {
+            org.batfish.representation.cisco_nxos.RouteMap attributeMap = routeMaps.get(attributeMapName);
+            if (attributeMap != null) {
+              // need to apply attribute changes if this specific route is matched
+              weInterior = new CallExpr(attributeMapName);
+              gr.setAttributePolicy(attributeMapName);
+
+          GeneratedRoute.Builder gr =
               GeneratedRoute.builder()
                   .setNetwork(prefix)
-                  .setAdmin(AGGREGATE_ROUTE_ADMIN_COST)
                   .setGenerationPolicy(
                       computeBgpNetworkGenerationPolicyName(true, vrf.getName(), prefix.toString()))
-                  .setDiscard(true)
-                  .build();
+                  // Unsure of discard setting - will need to make a compromise
+                  .setDiscard(false);
 
+
+            }
+          }
           vrf.getGeneratedRoutes().add(gr);
         }
 
-    )
+    );
 
 
   }
@@ -353,15 +367,8 @@ public final class CumulusConversions {
   static void generateNetworkGenerationPolicy(Configuration c, String vrfName, Prefix prefix) {
     RoutingPolicy.builder()
         .setOwner(c)
-        .setName(computeBgpGenerationPolicyName(true, vrfName, prefix.toString()))
-        .addStatement(
-            new If(
-                // Match routes with destination networks more specific than prefix.
-                new MatchPrefixSet(
-                    DestinationNetwork.instance(),
-                    new ExplicitPrefixSet(new PrefixSpace(PrefixRange.moreSpecificThan(prefix)))),
-                ImmutableList.of(Statements.ReturnTrue.toStaticStatement()),
-                ImmutableList.of(Statements.ReturnFalse.toStaticStatement())))
+        .setName(computeBgpNetworkGenerationPolicyName(true, vrfName, prefix.toString()))
+        .addStatement(Statements.ReturnTrue.toStaticStatement())
         .build();
   }
 
@@ -487,7 +494,7 @@ public final class CumulusConversions {
           .forEach(newProc::addToOriginationSpace);
 
       // Generate aggregate routes
-      generateGeneratedRoutes(c, c.getVrfs().get(vrfName), ipv4Unicast.getAggregateNetworks());
+      generateGeneratedRoutes(c, c.getVrfs().get(vrfName), ipv4Unicast.getAggregateNetworks(), vsConfig.getRouteMaps());
 
       // Generate Network Routes
       generateGeneratedRoutes(c, c.getVrfs().get(vrfName), ipv4Unicast.getAggregateNetworks());
