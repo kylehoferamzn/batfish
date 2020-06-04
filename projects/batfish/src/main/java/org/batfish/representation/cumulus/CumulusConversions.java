@@ -301,36 +301,28 @@ public final class CumulusConversions {
         });
 
     networks.forEach(
-        (prefix, bgpNetwork) -> {
-          generateNetworkGenerationPolicy(c, vrf.getName(), prefix);
+        (network, bgpNetwork) -> {
+          generateNetworkGenerationPolicy(c, vrf.getName(), network);
           // Create Attribute Policy
-          BooleanExpr weInterior = BooleanExprs.TRUE;
           String attributeMapName = bgpNetwork.getRouteMap();
 
-          if (attributeMapName != null) {
-            org.batfish.representation.cisco_nxos.RouteMap attributeMap = routeMaps.get(attributeMapName);
-            if (attributeMap != null) {
-              // need to apply attribute changes if this specific route is matched
-              weInterior = new CallExpr(attributeMapName);
-              gr.setAttributePolicy(attributeMapName);
-
+          // One caveat of generated routes is that they are aggregates by default instead of BGP.
+          // This is not the case in FRR and further enhancement is needed to match FRR behavior.
           GeneratedRoute.Builder gr =
               GeneratedRoute.builder()
-                  .setNetwork(prefix)
+                  .setNetwork(network)
                   .setGenerationPolicy(
-                      computeBgpNetworkGenerationPolicyName(true, vrf.getName(), prefix.toString()))
-                  // Unsure of discard setting - will need to make a compromise
+                      computeBgpNetworkGenerationPolicyName(true, vrf.getName(), network.toString()))
                   .setDiscard(false);
 
-
-            }
+          // Set attribute policy if it exists
+          if (attributeMapName != null) {
+            RouteMap attributeMap = routeMaps.get(attributeMapName);
+            if (attributeMap != null) { gr.setAttributePolicy(attributeMapName); }
           }
-          vrf.getGeneratedRoutes().add(gr);
+          vrf.getGeneratedRoutes().add(gr.build());
         }
-
     );
-
-
   }
 
   /**
@@ -358,7 +350,7 @@ public final class CumulusConversions {
 
   /**
    * Creates a generation policy for the aggregate network with the given {@link Prefix}. The
-   * generation policy generates unconditionally.
+   * generation policy generates unconditionally: http://docs.frrouting.org/en/latest/bgp.html
    *
    * @param c {@link Configuration} in which to create the generation policy
    * @param vrfName Name of VRF in which the aggregate network exists
@@ -493,11 +485,9 @@ public final class CumulusConversions {
       Sets.union(bgpVrf.getNetworks().keySet(), ipv4Unicast.getNetworks().keySet())
           .forEach(newProc::addToOriginationSpace);
 
-      // Generate aggregate routes
-      generateGeneratedRoutes(c, c.getVrfs().get(vrfName), ipv4Unicast.getAggregateNetworks(), vsConfig.getRouteMaps());
-
-      // Generate Network Routes
-      generateGeneratedRoutes(c, c.getVrfs().get(vrfName), ipv4Unicast.getAggregateNetworks());
+      // Generate network and aggregate routes
+      generateGeneratedRoutes(c, c.getVrfs().get(vrfName), ipv4Unicast.getAggregateNetworks(),
+          bgpVrf.getAllNetworks(), vsConfig.getRouteMaps());
 
     }
 
@@ -1043,32 +1033,6 @@ public final class CumulusConversions {
                   .add(new Not(new MatchProtocol(RoutingProtocol.AGGREGATE)));
               exportNetworkConditions.getConjuncts().add(we);
               exportConditions.add(exportNetworkConditions);
-            });
-
-
-    // Now we add all the per-network export policies.
-    bgpIpv4UnicastAddressFamily
-        .getNetworks()
-        .forEach(
-            (prefix, bgpNetwork) -> {
-              PrefixSpace exportSpace =
-                  new PrefixSpace(PrefixRange.fromPrefix(prefix));
-              @Nullable String routeMap = bgpNetwork.getRouteMap();
-              List<BooleanExpr> exportNetworkConditions =
-                  ImmutableList.of(
-                      new MatchPrefixSet(
-                          DestinationNetwork.instance(), new ExplicitPrefixSet(exportSpace)),
-                      new Not(
-                          new MatchProtocol(
-                              RoutingProtocol.BGP,
-                              RoutingProtocol.IBGP,
-                              RoutingProtocol.AGGREGATE)),
-                      bgpRedistributeWithEnvironmentExpr(
-                          routeMap != null && _routeMaps.containsKey(routeMap)
-                              ? new CallExpr(routeMap)
-                              : BooleanExprs.TRUE,
-                          OriginType.IGP));
-              exportConditions.add(new Conjunction(exportNetworkConditions));
             });
 
     return exportConditions;

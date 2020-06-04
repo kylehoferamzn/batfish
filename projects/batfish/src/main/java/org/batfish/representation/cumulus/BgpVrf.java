@@ -115,6 +115,19 @@ public class BgpVrf implements Serializable {
     return _networks;
   }
 
+  /**
+   * Method returns all ipv4 network statements from both default and ipv4unicast address family
+   * @return Map of networks
+   */
+  @Nonnull
+  public Map<Prefix, BgpNetwork> getAllNetworks() {
+    Map<Prefix, BgpNetwork> allNetworks = new HashMap<>(_networks);
+    if (_ipv4Unicast != null) {
+      _ipv4Unicast.getNetworks().forEach(allNetworks::put);
+    }
+    return allNetworks;
+  }
+
   public void addNetwork(Prefix network, @Nullable String routeMap) {
     _networks =
         ImmutableMap.<Prefix, BgpNetwork>builder()
