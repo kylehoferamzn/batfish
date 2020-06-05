@@ -24,6 +24,7 @@ import static org.batfish.representation.cumulus.CumulusConversions.generateExpo
 import static org.batfish.representation.cumulus.CumulusConversions.generateGeneratedRoutes;
 import static org.batfish.representation.cumulus.CumulusConversions.generateGenerationPolicy;
 import static org.batfish.representation.cumulus.CumulusConversions.getSetNextHop;
+import static org.batfish.representation.cumulus.CumulusConversions.inferClusterId;
 import static org.batfish.representation.cumulus.CumulusConversions.inferPeerIp;
 import static org.batfish.representation.cumulus.CumulusConversions.inferRouterId;
 import static org.batfish.representation.cumulus.CumulusConversions.inferClusterId;
@@ -1215,10 +1216,14 @@ public final class CumulusConversionsTest {
 
     BgpVrf bgpVrf = new BgpVrf("bgpVrf");
     bgpVrf.setClusterId(Ip.parse("2.2.2.2"));
+    bgpVrf.setAutonomousSystem(123L);
+
+    BgpNeighbor neighbor = new BgpInterfaceNeighbor("iface");
+    neighbor.setRemoteAs(123L);
 
     assertThat(
-        inferClusterId(bgpVrf, newProc.getRouterId()),
-        equalTo(Ip.parse("2.2.2.2")));
+        inferClusterId(bgpVrf, newProc.getRouterId(), neighbor),
+        equalTo(Ip.parse("2.2.2.2").asLong()));
   }
 
   @Test
@@ -1228,11 +1233,32 @@ public final class CumulusConversionsTest {
             Ip.parse("1.1.1.1"), ConfigurationFormat.CUMULUS_CONCATENATED);
 
     BgpVrf bgpVrf = new BgpVrf("bgpVrf");
+    bgpVrf.setAutonomousSystem(123L);
     bgpVrf.setClusterId(null);
 
+    BgpNeighbor neighbor = new BgpInterfaceNeighbor("iface");
+    neighbor.setRemoteAs(123L);
+
     assertThat(
-        inferClusterId(bgpVrf, newProc.getRouterId()),
-        equalTo(Ip.parse("1.1.1.1")));
+        inferClusterId(bgpVrf, newProc.getRouterId(), neighbor),
+        equalTo(Ip.parse("1.1.1.1").asLong()));
+  }
+
+  @Test
+  public void testInferClusterId_eBGP() {
+    org.batfish.datamodel.BgpProcess newProc =
+        new org.batfish.datamodel.BgpProcess(
+            Ip.parse("1.1.1.1"), ConfigurationFormat.CUMULUS_CONCATENATED);
+
+    BgpVrf bgpVrf = new BgpVrf("bgpVrf");
+    bgpVrf.setClusterId(Ip.parse("2.2.2.2"));
+    bgpVrf.setAutonomousSystem(2000L);
+
+    BgpNeighbor neighbor = new BgpInterfaceNeighbor("iface");
+    neighbor.setRemoteAs(123L);
+
+    assertThat(inferClusterId(bgpVrf, newProc.getRouterId(), neighbor), equalTo(null));
+>>>>>>> ClusterId Support to FRR (#5856)
   }
 
   @Test
