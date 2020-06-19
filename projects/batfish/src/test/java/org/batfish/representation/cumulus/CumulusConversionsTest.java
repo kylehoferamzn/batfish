@@ -1256,11 +1256,8 @@ public final class CumulusConversionsTest {
 
     BgpNeighbor neighbor = new BgpInterfaceNeighbor("iface");
     neighbor.setRemoteAs(123L);
-    bgpVrf.setClusterId(null);
 
-    assertThat(
-        inferClusterId(bgpVrf, newProc.getRouterId()),
-        equalTo(Ip.parse("1.1.1.1")));
+    assertThat(inferClusterId(bgpVrf, newProc.getRouterId(), neighbor), equalTo(null));
   }
 
   @Test
