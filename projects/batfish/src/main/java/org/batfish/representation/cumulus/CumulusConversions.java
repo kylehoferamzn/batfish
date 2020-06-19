@@ -947,8 +947,6 @@ public final class CumulusConversions {
           .ifPresent(statements::add);
     }
 
-    // 2. Generate
-
     // 2. Setup export conditions, export if match, otherwise fall through
     Disjunction exportConditions = new Disjunction();
 
